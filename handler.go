@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -14,6 +14,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tasks, _ := getTasksFromDB()
+	tasks = recursiveTaskFormatter(tasks)
 	response, err := json.Marshal(tasks)
 	if err != nil {
 		http.Error(w, "Failed to encode tasks", http.StatusInternalServerError)
@@ -32,14 +33,13 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.URL.Query().Get("id")
-
-	tasks, _ := getTasksFromDB()
+	tasks, err := getTasksFromDB()
 	task, err := findTaskByID(tasks, id)
 	if err != nil {
 		http.Error(w, "Failed to find task", http.StatusInternalServerError)
 		return
 	}
-
+	task = &recursiveTaskFormatter([]Task{*task})[0]
 	response, err := json.Marshal(task)
 	if err != nil {
 		http.Error(w, "Failed to encode task", http.StatusInternalServerError)
@@ -50,93 +50,70 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-// taskStatusHandler обрабатывает запросы для получения статуса выполнения задачи по ID.
-func taskStatusHandler(w http.ResponseWriter, r *http.Request) {
+// exportTasksHandler обрабатывает запросы для экспорта списка задач в файлы различных форматов.
+func exportTasksHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	id := r.URL.Query().Get("id")
-
-	tasks, _ := getTasksFromDB()
-	task, err := findTaskByID(tasks, id)
+	tasks, err := getTasksFromDB()
 	if err != nil {
-		http.Error(w, "Failed to find task", http.StatusInternalServerError)
+		http.Error(w, "Failed to get tasks", http.StatusInternalServerError)
 		return
 	}
-	status := taskStatusToString(task.Completed)
-	w.Write([]byte(status))
+	format := r.URL.Query().Get("format")
+
+	var response []byte
+
+	switch format {
+	case "pdf":
+		log.Println("Создаём PDF файл")
+		// ✨ pdfFile := fpdf.New("P", "mm", "A4", "")
+		log.Printf("Форматируем %d строк", len(tasks))
+		log.Println("Преобразуем файл в байты")
+		// ✨ response, err = pdfFile.Bytes()
+		w.Header().Set("Content-Type", "application/pdf")
+	case "csv":
+		log.Println("Создаём CSV файл")
+		// ✨ csvFile := csv.NewWriter(w)
+		log.Printf("Форматируем %d строк", len(tasks))
+		log.Println("Преобразуем файл в байты")
+		// ✨ response, err = csvFile.Bytes()
+		w.Header().Set("Content-Type", "text/csv")
+	case "xlsx":
+		log.Println("Создаём Excel файл")
+		// ✨ excelFile := excelize.NewFile()
+		log.Printf("Форматируем %d строк", len(tasks))
+		log.Println("Преобразуем файл в байты")
+		// ✨ response, err = excelFile.Bytes()
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	default:
+		http.Error(w, "Invalid export format", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Failed to export tasks", http.StatusInternalServerError)
+		return
+	}
+	w.Write(response)
 }
 
 // addTaskHandler обрабатывает запросы для добавления новой задачи.
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
-		return
-	}
-
-	var task Task
-	err = json.Unmarshal(body, &task)
-	if err != nil {
-		http.Error(w, "Invalid task data", http.StatusBadRequest)
-		return
-	}
-
-	err = insertTaskInDB(task)
-	if err != nil {
-		http.Error(w, "Failed to add task", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Task added successfully"))
+	// ✨ Тут вставка задачи в базу данных
+	// insertTaskInDB(task)
 }
 
 // removeTaskHandler обрабатывает запросы для удаления задачи по ID.
 func removeTaskHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Only DELETE method is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	idParam := r.URL.Query().Get("id")
-	if idParam == "" {
-		http.Error(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	err := deleteTaskFromDB(idParam)
-	if err != nil {
-		http.Error(w, "Failed to remove task", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Task removed successfully"))
+	// ✨ Тут удаление задачи из базы данных
+	// deleteTaskFromDB(id)
 }
 
-func prefixTasksHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	tasks, _ := getTasksFromDB()
-	prefix := r.URL.Query().Get("id")
-	taskNames := recursiveTaskFormatter(tasks, prefix)
-	response, err := json.Marshal(taskNames)
-	if err != nil {
-		http.Error(w, "Failed to encode tasks", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+// editTaskHandler обрабатывает запросы для редактирования задачи по ID.
+func editTaskHandler(w http.ResponseWriter, r *http.Request) {
+	// ✨ Тут редактирование задачи в базе данных
+	// updateTaskInDB(task)
 }

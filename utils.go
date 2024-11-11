@@ -19,14 +19,27 @@ func findTaskByID(tasks []Task, id string) (*Task, error) {
 	return nil, errors.New("task not found")
 }
 
-// recursiveTaskFormatter выполняет рекурсивное форматирование для списка задач, добавляя префиксы к каждому описанию.
-func recursiveTaskFormatter(tasks []Task, prefix string) []string {
+// recursiveTaskFormatter выполняет рекурсивное форматирование для списка задач, добавляя индикатор статуса к каждому описанию.
+func recursiveTaskFormatter(tasks []Task) []Task {
 	if len(tasks) == 0 {
-		return []string{}
+		return []Task{}
 	}
 
-	formattedTask := fmt.Sprintf("%s %s: %s", prefix, tasks[0].ID, tasks[0].Description)
-	return append([]string{formattedTask}, recursiveTaskFormatter(tasks[1:], prefix)...)
+	var mark string
+	if tasks[0].Completed {
+		mark = "✅"
+	} else {
+		mark = "🛑"
+	}
+	description := fmt.Sprintf("%s: %s", mark, tasks[0].Description)
+
+	return append([]Task{
+		{
+			ID:          tasks[0].ID,
+			Description: description,
+			Completed:   tasks[0].Completed,
+		},
+	}, recursiveTaskFormatter(tasks[1:])...)
 }
 
 // sanitizeTaskDescription очищает описание задачи от запрещённых символов.
@@ -34,12 +47,4 @@ func sanitizeTaskDescription(description *string) error {
 	re := regexp.MustCompile(`[!@#$%^&*()_+={}|[\]\\:;"'<>,.?/]`)
 	*description = re.ReplaceAllString(*description, "")
 	return nil
-}
-
-// taskStatusToString возвращает строковое представление статуса задачи.
-func taskStatusToString(completed bool) string {
-	if completed {
-		return "Completed"
-	}
-	return "Pending"
 }

@@ -8,11 +8,11 @@ import (
 
 func main() {
 	http.HandleFunc("/task", taskHandler)
-	http.HandleFunc("/task/status", taskStatusHandler)
 	http.HandleFunc("/task/add", addTaskHandler)
 	http.HandleFunc("/task/remove", removeTaskHandler)
+	http.HandleFunc("/task/edit", editTaskHandler)
 	http.HandleFunc("/tasks", tasksHandler)
-	http.HandleFunc("/tasks/prefix", prefixTasksHandler)
+	http.HandleFunc("/tasks/export", exportTasksHandler)
 
 	server := &http.Server{
 		Addr:         ":8080",
@@ -21,5 +21,5 @@ func main() {
 		IdleTimeout:  30 * time.Second,
 	}
 	log.Println("Starting server on :8080")
-	log.Fatal(server.ListenAndServe())
+	server.ListenAndServe()
 }

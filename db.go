@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -42,7 +41,6 @@ func getTasksFromDB() ([]Task, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	var tasks []Task
 	for rows.Next() {
@@ -61,33 +59,34 @@ func insertTaskInDB(task Task) error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("INSERT INTO tasks (id, description, completed) VALUES ($1, $2, $3)", task.ID, task.Description, task.Completed)
+	query := fmt.Sprintf(
+		"INSERT INTO tasks (id, description, completed) VALUES ('%s', '%s', %t)",
+		task.ID, task.Description, task.Completed,
+	)
+	_, err = db.Exec(query)
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func updateTaskDescriptionInDB(task Task) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	// ✨ Тут логика обновления связанных таблиц
+	_, err = tx.Exec("UPDATE tasks SET description = $1 WHERE id = $2", task.Description, task.ID)
+	if err != nil {
+		return err
+	}
+
+	tx.Commit()
 	return nil
 }
 
 // deleteTaskFromDB удаляет задачу из базы данных по ID.
 func deleteTaskFromDB(id string) error {
-	result, err := db.Exec(fmt.Sprintf("DELETE FROM tasks WHERE id = '%s'", id))
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return errors.New("no rows deleted, task not found")
-	}
-
+	// ✨ Тут логика удаления задачи
 	return nil
-}
-
-// updateTaskStatusInDB обновляет статус выполнения задачи в базе данных.
-func updateTaskStatusInDB(id string, completed bool) error {
-	_, err := db.Exec("UPDATE tasks SET completed = $1 WHERE id = $2", completed, id)
-	return err
 }
